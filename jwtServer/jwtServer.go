@@ -92,7 +92,7 @@ func main(){
 
 
     //http.ListenAndServe uses the default server structure.
-	portStr := "12001"
+	portStr := "12011"
 	log.Printf("listening on port: %s!\n", portStr)
     err := http.ListenAndServe(":"+portStr, mux)
     if err != nil {log.Fatalf("ListenAndServe: %v\n", err)}
