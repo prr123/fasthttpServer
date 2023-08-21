@@ -13,7 +13,6 @@ import (
     "log"
     "net/http"
 	"bytes"
-	"io/ioutil"
 )
 
 type myHandler struct{}
