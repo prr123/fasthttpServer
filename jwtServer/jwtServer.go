@@ -14,8 +14,16 @@ import (
     "log"
     "net/http"
 	"bytes"
-	"io/ioutil"
+	"io"
+
+	"github.com/goccy/go-json"
 )
+
+type userInfo struct {
+    User string `json:"username"`
+    Pwd string `json:"password"`
+}
+
 
 type myHandler struct{}
 
@@ -64,15 +72,21 @@ func Signin(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Request URI:  %s\n", r.RequestURI)
 	fmt.Printf("content-type: %s\n", r.Header.Get("content-type"))
 
-	fmt.Println("Request body:\n")
-	reqBody, err := ioutil.ReadAll(r.Body)
+	reqBody, err := io.ReadAll(r.Body)
 	if err != nil {
 		fmt.Printf("server: could not read request body: %s\n", err)
 		return
 	}
-	fmt.Printf("%s\n*** end request body ***\n", reqBody)
 
+	fmt.Printf("Request body:\n%s\n*** end request body ***\n", string(reqBody))
 
+	userData := userInfo{}
+
+	if err := json.Unmarshal(reqBody, &userData); err != nil {
+        log.Fatalf("error Json Unmarshal: %v\n", err)
+    }
+
+	fmt.Printf("User Data: %v\n",userData)
     fmt.Fprintf(w,"signin success\n")
 }
 
