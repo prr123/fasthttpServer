@@ -20,7 +20,7 @@ import (
    "crypto/sha1"
     "encoding/base64"
 
-	
+	"server/http/fasthttp/wsnonce"
 	"github.com/gobwas/ws"
 	"github.com/valyala/fasthttp"
     util "github.com/prr123/utility/utilLib"
@@ -188,21 +188,25 @@ Upgrade: websocket
 Connection: Upgrade
 Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
 */
+	wsKeyVal:= ctx.Request.Header.Peek("Sec-WebSocket-Key")
 
-	acceptStr:= "abc"
+    acceptStr, err := wsnonce.GenNonce([]byte(wsKeyVal))
+    if err != nil {log.Fatalf("cannot gen accept: %v", err)}
+	if han.dbg {
+		fmt.Printf("key: %s\naccept: %s\n", wsKeyVal, acceptStr)
+	}
 	ctx.SetStatusCode(101)
 //    ctx.SetContentType("text/plain; charset=utf8")
 	ctx.Response.Header.Set("Upgrade", "websocket")
 	ctx.Response.Header.Set("Connection", "Upgrade")
-	ctx.Response.Header.Set("Sec-Websocket-Accept", acceptStr)
+	ctx.Response.Header.Set("Sec-Websocket-Accept", string(acceptStr))
 //	ctx.Response.Header.Set("Sec-WebSocket-Protocol", *)
 //	ctx.Response.Header.Set("Sec-WebSocket-Extensions", *)
 
-	ctx.SetBodyString("hello -- this is a test string!\n")
-	
+	ctx.SetBodyString("ws resp sent!\n")
 
 	// The connection will be hijacked after sending this response.
-	fmt.Fprintf(ctx, "Hijacked the connection!")
+//	fmt.Fprintf(ctx, "Hijacked the connection!")
 	// this will get the raw net.Conn
 //	ctx.Hijack(hijackHandler)
 
