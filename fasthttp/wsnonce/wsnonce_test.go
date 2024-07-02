@@ -19,9 +19,13 @@ func TestWsNonce(t *testing.T) {
     fmt.Printf("encoded nonce: %s %d\n", encodedStr, len(encodedStr))
 
  	acceptStr, err := GenNonce([]byte(encodedStr))
-
 	if err != nil {t.Errorf("cannot gen accept: %v", err)}
 
     fmt.Printf("accept Str: %s %d\n", acceptStr, len(acceptStr))
+
+ 	acceptStr2, err := GenNonceStr(encodedStr)
+	if err != nil {t.Errorf("cannot gen accept: %v", err)}
+
+    fmt.Printf("accept Str: %s %d\n", acceptStr2, len(acceptStr2))
 
 }
