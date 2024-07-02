@@ -20,25 +20,10 @@ import (
    "crypto/sha1"
     "encoding/base64"
 
+	
 	"github.com/gobwas/ws"
 	"github.com/valyala/fasthttp"
     util "github.com/prr123/utility/utilLib"
-)
-
-const (
-	// RFC6455: The value of this header field MUST be a nonce consisting of a
-	// randomly selected 16-byte value that has been base64-encoded (see
-	// Section 4 of [RFC4648]).  The nonce MUST be selected randomly for each
-	// connection.
-	nonceKeySize = 16
-	nonceSize    = 24 // base64.StdEncoding.EncodedLen(nonceKeySize)
-
-	// RFC6455: The value of this header field is constructed by concatenating
-	// /key/, defined above in step 4 in Section 4.2.2, with the string
-	// "258EAFA5- E914-47DA-95CA-C5AB0DC85B11", taking the SHA-1 hash of this
-	// concatenated value to obtain a 20-byte value and base64- encoding (see
-	// Section 4 of [RFC4648]) this 20-byte hash.
-	acceptSize = 28 // base64.StdEncoding.EncodedLen(sha1.Size)
 )
 
 type Handler struct {
@@ -194,15 +179,32 @@ func (han Handler)wsHandler(ctx *fasthttp.RequestCtx) {
 		wsVerVal:= ctx.Request.Header.Peek("Sec-WebSocket-Version")
 		fmt.Printf("ws version: %s\n", wsVerVal)
 	}
-	// The connection will be hijacked after sending this response.
-	fmt.Fprintf(ctx, "Hijacked the connection!")
 
 	// return hhtp response
 	// ctx.Response.Header.Set(key, value)
+/*
+HTTP/1.1 101 Switching Protocols
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
+*/
 
+	acceptStr:= "abc"
+	ctx.SetStatusCode(101)
+//    ctx.SetContentType("text/plain; charset=utf8")
+	ctx.Response.Header.Set("Upgrade", "websocket")
+	ctx.Response.Header.Set("Connection", "Upgrade")
+	ctx.Response.Header.Set("Sec-Websocket-Accept", acceptStr)
+//	ctx.Response.Header.Set("Sec-WebSocket-Protocol", *)
+//	ctx.Response.Header.Set("Sec-WebSocket-Extensions", *)
 
+	ctx.SetBodyString("hello -- this is a test string!\n")
+	
+
+	// The connection will be hijacked after sending this response.
+	fmt.Fprintf(ctx, "Hijacked the connection!")
 	// this will get the raw net.Conn
-	ctx.Hijack(hijackHandler)
+//	ctx.Hijack(hijackHandler)
 
 }
 
@@ -236,7 +238,22 @@ func hijackHandler(c net.Conn) {
 
 
 func initAcceptFromNonce(accept, nonce []byte) {
-	const magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+	const (
+	magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+	// RFC6455: The value of this header field MUST be a nonce consisting of a
+	// randomly selected 16-byte value that has been base64-encoded (see
+	// Section 4 of [RFC4648]).  The nonce MUST be selected randomly for each
+	// connection.
+	nonceKeySize = 16
+	nonceSize    = 24 // base64.StdEncoding.EncodedLen(nonceKeySize)
+
+	// RFC6455: The value of this header field is constructed by concatenating
+	// /key/, defined above in step 4 in Section 4.2.2, with the string
+	// "258EAFA5- E914-47DA-95CA-C5AB0DC85B11", taking the SHA-1 hash of this
+	// concatenated value to obtain a 20-byte value and base64- encoding (see
+	// Section 4 of [RFC4648]) this 20-byte hash.
+	acceptSize = 28 // base64.StdEncoding.EncodedLen(sha1.Size)
+	)
 
 	if len(accept) != acceptSize {
 		panic("accept buffer is invalid")
@@ -254,6 +271,8 @@ func initAcceptFromNonce(accept, nonce []byte) {
 }
 
 func writeAccept(bw *bufio.Writer, nonce []byte) (int, error) {
+	// temporary solution
+	const acceptSize = 28
 	accept := make([]byte, acceptSize)
 	initAcceptFromNonce(accept, nonce)
 	// NOTE: write accept bytes as a string to prevent heap allocation –
@@ -267,3 +286,4 @@ func writeAccept(bw *bufio.Writer, nonce []byte) (int, error) {
 func b2s(b []byte) string {
 	return unsafe.String(unsafe.SliceData(b), len(b))
 }
+
