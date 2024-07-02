@@ -15,10 +15,7 @@ import (
 	"fmt"
 	"strings"
 	"net"
-	"bufio"
- 	"unsafe"
-   "crypto/sha1"
-    "encoding/base64"
+	"io"
 
 	"server/http/fasthttp/wsnonce"
 	"github.com/gobwas/ws"
@@ -123,7 +120,7 @@ func (han Handler)fooHandler(ctx *fasthttp.RequestCtx) {
 	if ctx.ConnRequestNum() == 1 {fmt.Fprintf(ctx,"need to login!\n")}
 
 	fmt.Fprintf(ctx,"connection id: %d\n\n", ctx.ConnID())
-	
+
 	authVal:= ctx.Request.Header.Peek("Authorization")
 	fmt.Fprintf(ctx,"auth value: %s\n", authVal)
 
@@ -188,6 +185,10 @@ Upgrade: websocket
 Connection: Upgrade
 Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
 */
+/* client
+var webSocket = new WebSocket('ws://89.116.30.49:9000/hijack');
+webSocket.onmessage = function(data) { console.log(data); }
+*/
 	wsKeyVal:= ctx.Request.Header.Peek("Sec-WebSocket-Key")
 
     acceptStr, err := wsnonce.GenNonce([]byte(wsKeyVal))
@@ -200,15 +201,13 @@ Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
 	ctx.Response.Header.Set("Upgrade", "websocket")
 	ctx.Response.Header.Set("Connection", "Upgrade")
 	ctx.Response.Header.Set("Sec-Websocket-Accept", string(acceptStr))
-//	ctx.Response.Header.Set("Sec-WebSocket-Protocol", *)
-//	ctx.Response.Header.Set("Sec-WebSocket-Extensions", *)
-
+//	ctx.Response.Header.Set("Sec-WebSocket-Protocol", *)//	ctx.Response.Header.Set("Sec-WebSocket-Extensions", *)
 	ctx.SetBodyString("ws resp sent!\n")
 
 	// The connection will be hijacked after sending this response.
-//	fmt.Fprintf(ctx, "Hijacked the connection!")
+	//	fmt.Fprintf(ctx, "Hijacked the connection!")
 	// this will get the raw net.Conn
-//	ctx.Hijack(hijackHandler)
+	//	ctx.Hijack(hijackHandler)
 
 }
 
@@ -226,68 +225,40 @@ func hijackHandler(c net.Conn) {
 	fmt.Printf("handshake: %v\n", hs)
 //	fmt.Fprintf(c, "This message is sent over a hijacked connection to the client %s\n", c.RemoteAddr())
 
-/*
-	fmt.Fprintf(c, "Send me something and I'll echo it to you\n")
-	var buf [1]byte
+	defer c.Close()
+
 	for {
-		if _, err := c.Read(buf[:]); err != nil {
-			log.Printf("error when reading from hijacked connection: %v", err)
+		header, err := ws.ReadHeader(c)
+		if err != nil {
+					// handle error
+		}
+
+		payload := make([]byte, header.Length)
+		_, err = io.ReadFull(c, payload)
+		if err != nil {
+					// handle error
+		}
+		if header.Masked {
+			ws.Cipher(payload, header.Mask, 0)
+		}
+
+		// Reset the Masked flag, server frames must not be masked as
+		// RFC6455 says.
+		header.Masked = false
+
+		if err := ws.WriteHeader(c, header); err != nil {
+					// handle error
+		}
+		if _, err := c.Write(payload); err != nil {
+					// handle error
+		}
+
+		if header.OpCode == ws.OpClose {
 			return
 		}
-		fmt.Fprintf(c, "You sent me %q. Waiting for new data\n", buf[:])
-	}
-*/
-
-}
-
-
-func initAcceptFromNonce(accept, nonce []byte) {
-	const (
-	magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-	// RFC6455: The value of this header field MUST be a nonce consisting of a
-	// randomly selected 16-byte value that has been base64-encoded (see
-	// Section 4 of [RFC4648]).  The nonce MUST be selected randomly for each
-	// connection.
-	nonceKeySize = 16
-	nonceSize    = 24 // base64.StdEncoding.EncodedLen(nonceKeySize)
-
-	// RFC6455: The value of this header field is constructed by concatenating
-	// /key/, defined above in step 4 in Section 4.2.2, with the string
-	// "258EAFA5- E914-47DA-95CA-C5AB0DC85B11", taking the SHA-1 hash of this
-	// concatenated value to obtain a 20-byte value and base64- encoding (see
-	// Section 4 of [RFC4648]) this 20-byte hash.
-	acceptSize = 28 // base64.StdEncoding.EncodedLen(sha1.Size)
-	)
-
-	if len(accept) != acceptSize {
-		panic("accept buffer is invalid")
-	}
-	if len(nonce) != nonceSize {
-		panic("nonce is invalid")
 	}
 
-	p := make([]byte, nonceSize+len(magic))
-	copy(p[:nonceSize], nonce)
-	copy(p[nonceSize:], magic)
-
-	sum := sha1.Sum(p)
-	base64.StdEncoding.Encode(accept, sum[:])
 }
 
-func writeAccept(bw *bufio.Writer, nonce []byte) (int, error) {
-	// temporary solution
-	const acceptSize = 28
-	accept := make([]byte, acceptSize)
-	initAcceptFromNonce(accept, nonce)
-	// NOTE: write accept bytes as a string to prevent heap allocation –
-	// WriteString() copy given string into its inner buffer, unlike Write()
-	// which may write p directly to the underlying io.Writer – which in turn
-	// will lead to p escape.
-//	return bw.WriteString(btsToString(accept))
-	return bw.WriteString(string(accept))
-}
 
-func b2s(b []byte) string {
-	return unsafe.String(unsafe.SliceData(b), len(b))
-}
 
