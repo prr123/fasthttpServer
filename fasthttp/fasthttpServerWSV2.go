@@ -210,6 +210,8 @@ func (han Handler)fooHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func (han Handler)idxHandler(ctx *fasthttp.RequestCtx) {
+	ctx.SetBodyString("index!\n")
+
 	log.Println("index")
 }
 
