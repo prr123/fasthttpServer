@@ -21,6 +21,7 @@ import (
 	"io"
 
 	"server/http/fasthttp/wsnonce"
+	"server/http/fasthttp/pathparser"
 	"github.com/gobwas/ws"
 	"github.com/valyala/fasthttp"
     util "github.com/prr123/utility/utilLib"
@@ -34,6 +35,7 @@ type Rtyp struct {
 type Handler struct {
 	dbg bool
     router map[string] Rtyp
+	p pparse.Path
 }
 
 
@@ -106,7 +108,7 @@ func main() {
     idx.ftyp = "text/javascript"
     han.router["azulLib.js"] = idx
 
-    stfilnam := wwwBase + "js/azulbasetst.js"
+    stfilnam := wwwBase + "js/azulstart.js"
     stfil, err := os.Open(stfilnam)
     if err != nil {log.Fatalf("error -- cannot open index file: %v\n", err)}
     defer stfil.Close()
@@ -137,18 +139,22 @@ func main() {
 	// the corresponding fasthttp request handler
 func (han Handler)requestHandler(ctx *fasthttp.RequestCtx) {
 
-	if han.dbg {log.Printf("request: %s method: %s path: %s\n", ctx.RequestURI(), ctx.Method(), ctx.Path())}
+	if han.dbg {log.Printf("dbg request: %s method: %s path: %s\n", ctx.RequestURI(), ctx.Method(), ctx.Path())}
 
 	// find etension and folder path -> parse ctx.PATH
 
-	switch string(ctx.Path()) {
-		case "/":
+	p := pparse.Pparse(ctx.Path())
+	if han.dbg {log.Printf("dbg Fold: %s Fnam: %s Ext: %s\n", p.Fold, p.Fnam, p.Ext)}
+	han.p = p
+
+	switch string(p.Fold) {
+		case "/","":
 			han.idxHandler(ctx)
-		case "/foo":
+		case "foo":
 			han.fooHandler(ctx)
-		case "/bar":
+		case "bar":
 			han.barHandler(ctx)
-		case "/hijack":
+		case "hijack":
 			// Note that the connection is hijacked only after
 			// returning from requestHandler and sending http response.
 			han.wsHandler(ctx)
@@ -210,9 +216,35 @@ func (han Handler)fooHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func (han Handler)idxHandler(ctx *fasthttp.RequestCtx) {
-	ctx.SetBodyString("index!\n")
 
-	log.Println("index")
+	if han.dbg {log.Printf("dbg index %s %s %s\n", han.p.Fold, han.p.Fnam, han.p.Ext)}
+
+	tgt := "index.html"
+	if len(han.p.Fnam) > 1 {tgt=string(han.p.Fnam)}
+
+    if han.dbg {fmt.Printf("dbg -- tgt: %s\n", tgt)}
+    ridx, ok := han.router[tgt]
+    if !ok {
+        fmt.Printf("error -- invalid req: %s\n", tgt)
+        ctx.SetStatusCode(404)
+        ctx.SetContentType("text/plain; charset=utf-8")
+        fmt.Fprintf(ctx, "invalid req: %s\n",tgt)
+        return
+    }
+    if han.dbg {fmt.Printf("dbg -- %s\n", ridx.ftyp)}
+    ctx.SetContentType(ridx.ftyp + "; charset=utf-8")
+
+//  m, err := io.Copy(os.Stdout, ridx.fil)
+    ridx.fil.Seek(0,0)
+    n, err := io.Copy(ctx, ridx.fil)
+    if err != nil {
+        log.Printf("error -- io.Copy: %v\n", err)
+        return
+    }
+	return
+    if han.dbg {fmt.Printf("dbg -- sent: %d\n", n)}
+
+
 }
 
 func (han Handler)barHandler(ctx *fasthttp.RequestCtx) {
