@@ -108,7 +108,7 @@ func main() {
     idx.ftyp = "text/javascript"
     han.router["azulLib.js"] = idx
 
-    stfilnam := wwwBase + "js/azulstart.js"
+    stfilnam := wwwBase + "js/azulstartV2.js"
     stfil, err := os.Open(stfilnam)
     if err != nil {log.Fatalf("error -- cannot open index file: %v\n", err)}
     defer stfil.Close()
