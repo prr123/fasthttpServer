@@ -150,11 +150,11 @@ func (han Handler)requestHandler(ctx *fasthttp.RequestCtx) {
 	switch string(p.Fold) {
 		case "/","":
 			han.idxHandler(ctx)
-		case "foo":
+		case "/foo":
 			han.fooHandler(ctx)
-		case "bar":
+		case "/bar":
 			han.barHandler(ctx)
-		case "hijack":
+		case "/hijack":
 			// Note that the connection is hijacked only after
 			// returning from requestHandler and sending http response.
 			han.wsHandler(ctx)
@@ -271,6 +271,7 @@ func (han Handler)wsHandler(ctx *fasthttp.RequestCtx) {
 
 
 	if han.dbg {
+		log.Printf("ws upgrade!\n")
 		upgVal:= ctx.Request.Header.Peek("Upgrade")
 		fmt.Printf("upgrade value: %s\n", upgVal)
 		conVal:= ctx.Request.Header.Peek("Connection")
@@ -309,17 +310,19 @@ webSocket.onmessage = function(data) { console.log(data); }
 	ctx.SetBodyString("ws resp sent!\n")
 
 	// The connection will be hijacked after sending this response.
-	//	fmt.Fprintf(ctx, "Hijacked the connection!")
 	// this will get the raw net.Conn
-	//	ctx.Hijack(hijackHandler)
+	log.Printf("hijacking conn\n")
 
+	ctx.Hijack(hijackHandler)
+	fmt.Fprintf(ctx, "Hijacked the connection!")
 }
 
 // hijackHandler is called on hijacked connection.
 func hijackHandler(c net.Conn) {
 
-	fmt.Printf("hello hijack handler\n")
+	log.Printf("hello hijack handler\n")
 
+/*
 	hs, err := ws.Upgrade(c)
 	if err != nil {
 		fmt.Printf("upgrade error: %v\n", err)
@@ -328,41 +331,62 @@ func hijackHandler(c net.Conn) {
 
 	fmt.Printf("handshake: %v\n", hs)
 //	fmt.Fprintf(c, "This message is sent over a hijacked connection to the client %s\n", c.RemoteAddr())
-
+*/
 	defer c.Close()
 
-	for {
+//	for {
 		header, err := ws.ReadHeader(c)
 		if err != nil {
 					// handle error
+			log.Printf("error -- read header: %v\n", err)
 		}
 
+		log.Printf("header [%d]: %v\n",header.Length, header)
+		PrintWSHeader(header)
+/*
+		if header.OpCode == ws.OpClose {
+			log.Printf("socket close\n")
+//			break
+		}
+*/
 		payload := make([]byte, header.Length)
 		_, err = io.ReadFull(c, payload)
 		if err != nil {
 					// handle error
+					// handle error
+			log.Printf("error -- read full: %v\n", err)
 		}
 		if header.Masked {
 			ws.Cipher(payload, header.Mask, 0)
 		}
+		log.Printf("payload: %s\n", payload)
 
 		// Reset the Masked flag, server frames must not be masked as
 		// RFC6455 says.
 		header.Masked = false
 
-		if err := ws.WriteHeader(c, header); err != nil {
-					// handle error
-		}
-		if _, err := c.Write(payload); err != nil {
-					// handle error
-		}
+		msg := []byte("hello client!")
+		header.Length = int64(len(msg))
 
-		if header.OpCode == ws.OpClose {
-			return
+		if err := ws.WriteHeader(c, header); err != nil {
+			log.Printf("error -- write header: %v\n", err)
 		}
-	}
+		if _, err := c.Write(msg); err != nil {
+			log.Printf("error -- write payload: %v\n", err)
+		}
+		log.Printf("msg sent!")
+//	}
 
 }
 
+func PrintWSHeader(h ws.Header) {
 
-
+	fmt.Println("************* ws Header **************")
+	fmt.Printf("Fin:    %t\n",h.Fin)
+	fmt.Printf("Rsv:    %x\n",h.Rsv)
+	fmt.Printf("OpC:    %x\n",h.OpCode)
+	fmt.Printf("Masked: %t\n",h.Masked)
+	fmt.Printf("Mask: 	%v\n",h.Mask)
+	fmt.Printf("Length: %t\n",h.Fin)
+	fmt.Println("*********** end ws Header ************")
+}
