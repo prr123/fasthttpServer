@@ -2,6 +2,20 @@
 
 server programs that demonstrate fasthttp methods
 
+# azulserver
+
+server that uses a minimal html file and uploads js code to build the dom
+
+## fasthttpServer.go
+
+
+## fasthttpServerV2.go
+
+
+## fasthttpServerV3.go
+
+
+
 # ws for fasthttp
 ## fasthttpServerWSV1.go
 
@@ -19,5 +33,12 @@ send simple message back and forth
 building upgrader
 will submit to fasthttp
 
-
 test bed for ws and html/js to test ws communication
+
+## fasthttpServerWSV4.go
+
+built separate package upgrader
+
+ - upgrade.Upgrade
+ - ctxHijack
+ - hijack handler
