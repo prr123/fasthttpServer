@@ -14,6 +14,16 @@ server that uses a minimal html file and uploads js code to build the dom
 
 ## fasthttpServerV3.go
 
+This program is a simple server. Has no cli interpreter
+
+## fasthttpServerV5.go
+
+This program is a derivative of fasthttpServerV4, since that program has CLI.
+./fasthttpServerV5 /port=<porttno> [/idx=indexfile] [/dbg]
+
+The program reads the index file and parses it to obtain all script files. It then imbeds the indexfile together with the script files for faster delivery.
+
+## fasthttpServerV6.go
 
 
 # ws for fasthttp
@@ -42,3 +52,10 @@ built separate package upgrader
  - upgrade.Upgrade
  - ctxHijack
  - hijack handler
+
+
+# Next Steps for Speed Optimization
+
+ - break-up azulLib.js into 2 files
+ - test minimizer for the js code
+ - test compression
