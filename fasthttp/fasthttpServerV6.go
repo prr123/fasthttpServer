@@ -480,11 +480,13 @@ func hijackHandler(c net.Conn) {
 		if binary {
 			ival++
 			msg = Int32ToByteSlice(ival)
+			header.OpCode = 2
 			header.Length = 4
 		} else {
 			tstStr := fmt.Sprintf("hello client [%d]!", it)
 			msg = []byte(tstStr)
 			header.Length = int64(len(msg))
+			header.OpCode = 1
 		}
 
 		if it == 7 {
