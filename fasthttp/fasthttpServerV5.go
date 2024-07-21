@@ -2,7 +2,7 @@
 // building a webserver based on wasgob and fasthttp
 //
 // Author: prr, azul software
-// Date 13 July 2024
+// Date 29 June 2024
 // copyright (c) 2024 prr, azul software
 //
 
@@ -12,9 +12,6 @@
 //
 // v3 create upgrader routine
 //
-// v5: test performance by preloading html
-// v6: preload scripts
-//
 
 package main
 
@@ -22,7 +19,7 @@ import (
 	"os"
 	"log"
 	"fmt"
-	"bytes"
+//	"bytes"
 	"strings"
 	"net"
 	"io"
@@ -44,19 +41,12 @@ type Handler struct {
 	dbg bool
     router map[string] Rtyp
 	p pparse.Path
-	index *[]byte
-	idxLen int
 }
 
-type scrIns struct {
-	filnam string
-	st int
-	end int
-}
 
 func main() {
 
-	wwwBase := "/home/peter/www/azultest/"
+	wwwBase := "/home/peter/www/azuldist/"
 
     numarg := len(os.Args)
     flags:=[]string{"dbg", "port", "index"}
@@ -92,13 +82,12 @@ func main() {
         portStr = pval.(string)
     }
 
-    rootFil := "indexjsV5"
+    rootFil := "indexjsV4"
     rval, ok := flagMap["index"]
     if ok {
         if rval.(string) == "none" {log.Fatalf("error: no index file name provided!\n")}
         rootFil = rval.(string)
     }
-
 
 
 	han := Handler{
@@ -107,15 +96,14 @@ func main() {
     han.router = make(map[string]Rtyp)
 
     idxFilnam := wwwBase + "html/" + rootFil + ".html"
-	idxfil, err := os.Open(idxFilnam)
+    fil, err := os.Open(idxFilnam)
     if err != nil {log.Fatalf("error -- cannot open index file: %v\n", err)}
     idx := Rtyp {
-        fil: idxfil,
+        fil: fil,
         ftyp: "text/html",
     }
     han.router["index.html"] = idx
 
-/*
     libfilnam := wwwBase + "js/azulLibV8.js"
     libfil, err := os.Open(libfilnam)
     if err != nil {log.Fatalf("error -- cannot open index file: %v\n", err)}
@@ -138,69 +126,13 @@ func main() {
 //  han.start = stfil
     idx.fil = xpfil
     han.router["azulxp.js"] = idx
-*/
-
-//	preload
-	idxlen := 1024*200
-	idxbyt := make([]byte, idxlen)
-	n, err:= idxfil.Read(idxbyt)
-	if err != nil {log.Fatalf("error -- reading idx file: %v\n",err)} 
-	if n == idxlen {log.Fatalf("error -- idxlen too small!\n")}
-
-	if dbg {fmt.Printf("dbg -- idx [%d]:\n%s\n", n, string(idxbyt))}
-
-	res, err := parseScript(idxbyt)
-	if err != nil {log.Fatalf("error -- parsing idx file: %v\n",err)} 
-//fmt.Printf("dbg -- len(res): %d\n", len(res))
 
 
 	if dbg {
 		fmt.Println("************ setup ****************")
-		for i:=0; i< len(res); i++ {
-			fmt.Printf("  %d: -- [%d:%d] %s\n", i+1, res[i].st, res[i].end, res[i].filnam)
-		}
+
 		fmt.Println("********** end setup **************")
 	}
-
-//	read azul lib
-	liblen := 1024*100
-	libbyt := make([]byte, liblen)
-
-
-//	isize = n
-
-	pt := res[0].st
-	idxbyt[pt-1] = '>'
-	idxbyt[pt] = '\n'
-	pt++
-
-	for i:=0; i<len(res); i++ {
-	    libfilnam := wwwBase + "js/" + res[i].filnam
-		if dbg {log.Printf("dbg -- fil[%d]: %s\n",i+1, libfilnam)}
-
-		libfil, err := os.Open(libfilnam)
-		if err != nil {log.Fatalf("error -- cannot open index file: %v\n", err)}
-
-		nlib, err:= libfil.Read(libbyt)
-		if err != nil {log.Fatalf("error -- reading lib file: %v\n",err)} 
-		if nlib == liblen {log.Fatalf("error -- liblen too small!\n")}
-    	libfil.Close()
-
-		for j:=0; j<nlib; j++ {
-			idxbyt[pt] = libbyt[j]
-			pt++
-		}
-	}
-
-	rem := []byte("\n</script>\n</html>\n")
-	for i:=0; i<len(rem); i++ {
-		idxbyt[pt] = rem[i]
-		pt++
-	}
-	lidx := pt
-
-	han.index = &idxbyt
-	han.idxLen = lidx
 
 	log.Printf("info -- starting to listen at port: %s\n", portStr)
 	fasthttp.ListenAndServe(":"+portStr, han.requestHandler)
@@ -287,7 +219,7 @@ func (han Handler)fooHandler(ctx *fasthttp.RequestCtx) {
 */
 }
 
-func (han Handler)idxHandlerOld(ctx *fasthttp.RequestCtx) {
+func (han Handler)idxHandler(ctx *fasthttp.RequestCtx) {
 
 	if han.dbg {log.Printf("dbg index %s %s %s\n", han.p.Fold, han.p.Fnam, han.p.Ext)}
 
@@ -316,48 +248,6 @@ func (han Handler)idxHandlerOld(ctx *fasthttp.RequestCtx) {
 	return
     if han.dbg {fmt.Printf("dbg -- sent: %d\n", n)}
 }
-
-func (han Handler)idxHandler(ctx *fasthttp.RequestCtx) {
-
-	if han.dbg {log.Printf("dbg index %s %s %s\n", han.p.Fold, han.p.Fnam, han.p.Ext)}
-
-/*
-	tgt := "index.html"
-	if len(han.p.Fnam) > 1 {tgt=string(han.p.Fnam)}
-
-    if han.dbg {fmt.Printf("dbg -- tgt: %s\n", tgt)}
-    ridx, ok := han.router[tgt]
-    if !ok {
-        fmt.Printf("error -- invalid req: %s\n", tgt)
-        ctx.SetStatusCode(404)
-        ctx.SetContentType("text/plain; charset=utf-8")
-        fmt.Fprintf(ctx, "invalid req: %s\n",tgt)
-        return
-    }
-    if han.dbg {fmt.Printf("dbg -- %s\n", ridx.ftyp)}
-    ctx.SetContentType(ridx.ftyp + "; charset=utf-8")
-
-//  m, err := io.Copy(os.Stdout, ridx.fil)
-
-    ridx.fil.Seek(0,0)
-    n, err := io.Copy(ctx, ridx.fil)
-    if err != nil {
-        log.Printf("error -- io.Copy: %v\n", err)
-        return
-    }
-*/
-    ctx.SetContentType("text/html; charset=utf-8")
-	out := *han.index
-fmt.Printf("dbg -- out\n%s\n",string(out[:han.idxLen]))
-	n, err := ctx.Write(out[:han.idxLen])
-	if err != nil {log.Fatalf("error -- ctx write: %v", err)}
-    if han.dbg {fmt.Printf("dbg -- sent: %d\n", n)}
-}
-
-
-
-
-
 
 func (han Handler)barHandler(ctx *fasthttp.RequestCtx) {
 //	fmt.Fprintf(ctx, "Hi there! bar here! RequestURI is %q", ctx.RequestURI())
@@ -485,61 +375,3 @@ func PrintWSHeader(h ws.Header) {
 	fmt.Println("*********** end ws Header ************")
 }
 
-
-func parseScript(idx []byte)(res []scrIns, err error) {
-
-	ist :=0
-	scIdx :=-1
-	scEnd := -1
-	for i:=0; i< 10; i++ {
-		scIdx = bytes.Index(idx[ist:],[]byte("<script "))
-		if scIdx == -1 {break}
-		nist := ist + scIdx + 8
-		scEnd = bytes.Index(idx[nist:],[]byte("</script>"))
-		ist = nist + scEnd + 9
-//fmt.Printf("%d: %s\n",i,string(idx[nist:ist -9]))
-		jsfilnam, err := parseScriptFil(idx[nist:(ist -9)])
-		if err != nil {return res, fmt.Errorf("parsing script: %v", err)}
-//fmt.Printf("js file name: %s\n", jsfilnam)
-		scr := scrIns {
-			st: nist,
-			end: ist-9,
-			filnam: jsfilnam,
-		}
-
-		res = append(res, scr)
-	}
-//	if scIdx<0 {return res, fmt.Errorf("no script")}
-//	if scEnd<0 {return res, fmt.Errorf("no /script")}
-	return res, nil
-}
-
-func parseScriptFil(x []byte)(out string, err error) {
-
-	istate:=0
-	ist:= -1
-	iend := -1
-	for i:=0; i< len(x)-1; i++ {
-		switch istate {
-		case 0:
-			if x[i] == '\'' {
-				istate = 1
-				ist = i+1
-			}
-
-		case 1:
-			if x[i] == '\'' {
-				istate = 2
-				iend = i
-			}
-		default:
-		}
-		if istate == 2 {break}
-	}
-
-	if ist<0 {return "", fmt.Errorf("no start apost")}
-	if iend<0 {return "", fmt.Errorf("no end apost")}
-
-	out = string(x[ist:iend])
-	return out, nil
-}
