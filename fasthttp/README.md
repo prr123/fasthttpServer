@@ -18,13 +18,35 @@ This program is a simple server. Has no cli interpreter
 
 ## fasthttpServerV5.go
 
+ - added cli interface
 This program is a derivative of fasthttpServerV4, since that program has CLI.
-./fasthttpServerV5 /port=<porttno> [/idx=indexfile] [/dbg]
+./fasthttpServerV5 /port=<portno> [/idx=indexfile] [/dbg]
+
+  - improve performance by reducing the azulLib
+remove the material design from pageHtml class
+
+  - no embedding
+
+
+
+## fasthttpServerV6Old.go
+
+change to fasthttpServerNV1.go
+
+  - checked text and binary transmission with websocket
+  - embedding of script files and index file to eliminate multiple roundtrips
+  - reduced azulLibV8.js -> azulNLibV1.js eliminated most md code
 
 The program reads the index file and parses it to obtain all script files. It then imbeds the indexfile together with the script files for faster delivery.
 
-## fasthttpServerV6.go
+## fasthttpServerNV2.go
 
+todo:
+ - parse index file to read correct js files?
+ - test expanding the class HtmlPage with code from azulLibxp
+ - test minimizer for the js code
+ - test compression
+ - webworkers
 
 # ws for fasthttp
 ## fasthttpServerWSV1.go
@@ -56,6 +78,15 @@ built separate package upgrader
 
 # Next Steps for Speed Optimization
 
- - break-up azulLib.js into 2 files
- - test minimizer for the js code
- - test compression
+## fasthttpServerNV1.go
+
+ - test binary number transmission and its interpretation 
+ - dataview
+ - mixed numbers and text
+
+## fasthttpServerNV2.go
+
+more websocket testing:
+ - ping and pong
+ - multiple frames
+
