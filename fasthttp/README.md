@@ -75,6 +75,9 @@ built separate package upgrader
  - ctxHijack
  - hijack handler
 
+# embed
+A program that reads an html index file and embeds the quoted script files.
+The default output file name is the input file name with the added "_embed" text.
 
 # Next Steps for Speed Optimization
 
