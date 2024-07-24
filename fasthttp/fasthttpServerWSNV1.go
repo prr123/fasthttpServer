@@ -1,20 +1,13 @@
-// fastHttpServerV6
+// fastHttpServerWSNV1
 // building a webserver based on wasgob and fasthttp
 //
 // Author: prr, azul software
 // Date 13 July 2024
 // copyright (c) 2024 prr, azul software
 //
-
-// V2 add RTyp and expand handler type
-// add router
-// test websocket
+// embeds script files
 //
-// v3 create upgrader routine
-//
-// v5: test performance by preloading html
-//     preload scripts
-// V6: add binary transport
+// binary transport
 //
 
 package main
@@ -30,7 +23,6 @@ import (
 	"unsafe"
 
 	"server/http/fasthttp/upgrader"
-//	"server/http/fasthttp/wsnonce"
 	"server/http/fasthttp/pathparser"
 	"github.com/gobwas/ws"
 	"github.com/valyala/fasthttp"
@@ -123,30 +115,6 @@ func main() {
     }
     han.router["index.html"] = idx
 
-/*
-    libfilnam := wwwBase + "js/azulLibV8.js"
-    libfil, err := os.Open(libfilnam)
-    if err != nil {log.Fatalf("error -- cannot open index file: %v\n", err)}
-    defer libfil.Close()
-    idx.fil = libfil
-    idx.ftyp = "text/javascript"
-    han.router["azulLib.js"] = idx
-
-    stfilnam := wwwBase + "js/azulstartV2.js"
-    stfil, err := os.Open(stfilnam)
-    if err != nil {log.Fatalf("error -- cannot open index file: %v\n", err)}
-    defer stfil.Close()
-    idx.fil = stfil
-    han.router["azulstart.js"] = idx
-
-   	xpfilnam := wwwBase + "js/azulxp.js"
-    xpfil, err := os.Open(xpfilnam)
-    if err != nil {log.Fatalf("error -- cannot open xp file: %v\n", err)}
-    defer xpfil.Close()
-//  han.start = stfil
-    idx.fil = xpfil
-    han.router["azulxp.js"] = idx
-*/
 
 //	preload
 	idxlen := 1024*200
@@ -444,11 +412,12 @@ func hijackHandler(c net.Conn) {
 	log.Println("*** ws handler start ***")
 
 	binary := false
+	ival = 0
 	for it:=0; it< 10; it++ {
 		header, err := ws.ReadHeader(c)
 		if err != nil {log.Printf("ws error -- read header: %v\n", err)}
 
-		log.Printf("ws header [%d]: %x\n",header.Length,header.OpCode)
+		log.Printf("<ws rec msg header [%d]: %x\n",header.Length,header.OpCode)
 //		PrintWSHeader(header)
 
 		if header.OpCode == ws.OpClose {
@@ -464,27 +433,34 @@ func hijackHandler(c net.Conn) {
 		}
 		if header.OpCode == 1 {
 			binary = false
-			log.Printf("ws text payload: %s\n", payload)
+			log.Printf("<ws rec text payload [%d]: >%s<\n", header.Length, payload)
 		}
 
 		if header.OpCode == 2 {
 			binary = true
-			ival = ByteSliceToInt32(payload[:4])
-			log.Printf("ws binary payload: %d\n", ival)
+// x
+			inval := BArToInt32(payload[:4])
+//			ival = ByteSliceToInt32(payload[:4])
+			log.Printf("<ws rec binary payload [%d]: >%d<\n", header.Length, inval)
+//			ival = inval
 		}
 
-		if it >3 {binary = true}
+		if it >3 {
+			binary = true
+		}
 		// Reset the Masked flag, server frames must not be masked as
 		// RFC6455 says.
 		header.Masked = false
 		if binary {
-			ival++
-			msg = Int32ToByteSlice(ival)
+//			msg = Int32ToByteSlice(ival)
+			ar := Int32ToBAr(ival)
+			msg = ar[:]
 			fmt.Printf("msg: %v\n", msg)
 			header.OpCode = 2
 			header.Length = 4
+			ival++
 		} else {
-			tstStr := fmt.Sprintf("hello client [%d]!", it)
+			tstStr := fmt.Sprintf("hello client %d!", it)
 			msg = []byte(tstStr)
 			header.Length = int64(len(msg))
 			header.OpCode = 1
@@ -504,9 +480,9 @@ func hijackHandler(c net.Conn) {
 			log.Printf("error -- write payload: %v\n", err)
 		}
 		if binary {
-			log.Printf("bin msg sent [%d]: %d!", header.Length, ival)
+			log.Printf(">bin msg sent [%d]: %d!", header.Length, ival)
 		} else {
-			log.Printf("txt msg sent [%d]: %s!", header.Length, msg)
+			log.Printf(">txt msg sent [%d]: >%s<", header.Length, msg)
 		}
 	}
 
@@ -613,3 +589,14 @@ func ByteSliceToInt32(arr []byte) int32{
     }
     return val
 }
+
+func Int32ToBAr(x int32) (ar [4]byte) {
+	ar = *(*[4]byte)(unsafe.Pointer(&x))
+	return ar
+}
+
+func BArToInt32(ar []byte) (x int32) {
+	x = *(*int32)(unsafe.Pointer(&ar[0]))
+	return x
+}
+// (*type)(unsafe.Pointer()) casts a pointer into a pointer to type 
