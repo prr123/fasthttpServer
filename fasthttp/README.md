@@ -41,12 +41,17 @@ The program reads the index file and parses it to obtain all script files. It th
 
 ## fasthttpServerNV2.go
 
+todo 1: parse index file to retrieve js files
+
+ - added jsHandler to handle requests for js files
+ - test reading js files with fetch from browser
+
 todo:
- - parse index file to read correct js files?
- - test expanding the class HtmlPage with code from azulLibxp
- - test minimizer for the js code
- - test compression
- - webworkers
+ 1. parse index file to retrieve js files
+ 2. test expanding the class HtmlPage with code from azulLibxp
+ 3. test minimizer for the js code
+ 4. test compression
+ 5. test webworkers
 
 # ws for fasthttp
 ## fasthttpServerWSV1.go
