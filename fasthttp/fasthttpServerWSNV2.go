@@ -201,7 +201,7 @@ func (han Handler)requestHandler(ctx *fasthttp.RequestCtx) {
 	switch string(p.Fold) {
 		case "/","":
 			han.idxHandler(ctx)
-		case "/js":
+		case "/js/":
 			han.jsHandler(ctx)
 		case "/foo":
 			han.fooHandler(ctx)
