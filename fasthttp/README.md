@@ -98,3 +98,19 @@ more websocket testing:
  - ping and pong
  - multiple frames
 
+## fasthttpServerNV3.go
+
+added handler for json
+
+## fasthttpServerNV4.go
+
+added handler to retrieve pdf files
+
+## fasthttpServerNV5.go
+
+changed idx handler
+ - need to add /js prefix for javascript files
+ - added preload flag
+
+index html is alway preloaded. References to script files are embedded if the preload flag is set and the reference is "psrc". If the preload flag is not set then the "psrc" attribute is changed to "src".
+
