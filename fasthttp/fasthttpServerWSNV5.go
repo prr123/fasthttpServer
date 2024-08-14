@@ -1,4 +1,4 @@
-// fastHttpServerWSNV1
+// fastHttpServerWSNV5
 // building a webserver based on wasgob and fasthttp
 //
 // Author: prr, azul software
