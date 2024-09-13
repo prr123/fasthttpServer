@@ -114,3 +114,10 @@ changed idx handler
 
 index html is alway preloaded. References to script files are embedded if the preload flag is set and the reference is "psrc". If the preload flag is not set then the "psrc" attribute is changed to "src".
 
+## fasthttpServerNV7.go
+
+add post handler for json objects
+
+todo:
+ - convert routing from case to hash functions
+ - decypher method with a hash function from hashLib
